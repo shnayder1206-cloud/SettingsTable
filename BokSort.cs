@@ -107,7 +107,20 @@ public static class BokParser
 
     public static List<BokLine> ParseFile(string path)
     {
-        var lines = File.ReadAllLines(path, Encoding.UTF8);
+        // UTF-8, если файл не читается как UTF-8 — Windows-1251 (типично для .bok)
+        Encoding enc;
+        try
+        {
+            var strict = new UTF8Encoding(encoderShouldEmitUTF8Identifier: false, throwOnInvalidBytes: true);
+            File.ReadAllText(path, strict);
+            enc = Encoding.UTF8;
+        }
+        catch (DecoderFallbackException)
+        {
+            Encoding.RegisterProvider(System.Text.CodePagesEncodingProvider.Instance);
+            enc = Encoding.GetEncoding("Windows-1251");
+        }
+        var lines = File.ReadAllLines(path, enc);
         var list = new List<BokLine>(lines.Length);
         for (int i = 0; i < lines.Length; i++)
             list.Add(Parse(lines[i], i + 1));
@@ -271,6 +284,20 @@ public static class Program
         var items = BokParser.ParseFile(src);
         Console.WriteLine($"BokSort: «{src}» — {items.Count} строк");
 
+        // Определяем кодировку входа, чтобы сохранить её в выходе
+        Encoding srcEnc;
+        try
+        {
+            var strict = new UTF8Encoding(false, throwOnInvalidBytes: true);
+            File.ReadAllText(src, strict);
+            srcEnc = new UTF8Encoding(false);
+        }
+        catch (DecoderFallbackException)
+        {
+            Encoding.RegisterProvider(System.Text.CodePagesEncodingProvider.Instance);
+            srcEnc = Encoding.GetEncoding("Windows-1251");
+        }
+
         if (doFix)
         {
             items = BokFixer.Fix(items);
@@ -311,7 +338,7 @@ public static class Program
 
         // 4) Запись
         var output = sorted.Select(BokSerializer.Serialize);
-        File.WriteAllLines(dst, output, new UTF8Encoding(false));
+        File.WriteAllLines(dst, output, srcEnc);
         Console.WriteLine($"\nЗаписано: «{dst}»");
 
         var widths = items.Where(x => x.Kind == BokKind.Width)
