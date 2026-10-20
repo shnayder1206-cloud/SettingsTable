@@ -1,0 +1,8 @@
+BokSort/
+├── BokSort.csproj
+├── BokSort.cs
+├── bok.rules
+└── tests/
+    ├── bokrai_bs5.txt
+    ├── bokrai_bs21.txt
+    └── op_10.txt
